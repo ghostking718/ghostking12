@@ -1,0 +1,220 @@
+<!--
+  File: index.html
+  Trang giới thiệu - Dẫn link nhận quà
+-->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Gửi Quà Đến Người Yêu 💝</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to right, #ffdde1, #ee9ca7);
+      color: #333;
+      text-align: center;
+      padding: 50px;
+    }
+    h1 {
+      font-size: 3em;
+      color: #e91e63;
+    }
+    a {
+      display: inline-block;
+      margin-top: 30px;
+      padding: 15px 25px;
+      background: #fff;
+      color: #e91e63;
+      border-radius: 12px;
+      text-decoration: none;
+      font-size: 1.2em;
+      transition: 0.3s;
+    }
+    a:hover {
+      background: #e91e63;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎁 Món quà nhỏ dành riêng cho em!</h1>
+  <p>Hãy bấm vào nút bên dưới để mở hộp quà nhé 💌</p>
+  <a href="/nhanquagift.html">Nhận quà ngay</a>
+</body>
+</html>
+
+<!-- Firebase config snippet -->
+<script id="firebase-config" type="application/json">
+{
+  "apiKey": "YOUR_API_KEY",
+  "authDomain": "YOUR_PROJECT.firebaseapp.com",
+  "databaseURL": "https://YOUR_PROJECT.firebaseio.com",
+  "projectId": "YOUR_PROJECT_ID",
+  "storageBucket": "YOUR_PROJECT.appspot.com",
+  "messagingSenderId": "YOUR_SENDER_ID",
+  "appId": "YOUR_APP_ID"
+}
+</script>
+
+<!--
+  File: nhanquagift.html
+  Trang nhận quà bằng mã (dùng Firebase để kiểm tra mã)
+-->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Nhận Quà 🎁</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #fff3f6;
+      text-align: center;
+      padding: 50px;
+    }
+    #giftBox {
+      width: 200px;
+      height: 200px;
+      margin: auto;
+      background: pink;
+      border-radius: 20px;
+      cursor: pointer;
+      line-height: 200px;
+      font-size: 2em;
+      color: white;
+      box-shadow: 0 0 20px #e91e63;
+      transition: transform 0.5s;
+    }
+    #giftBox.opened {
+      transform: scale(1.1);
+      background: #e91e63;
+    }
+    #giftContent {
+      margin-top: 30px;
+      display: none;
+    }
+    #giftContent.show {
+      display: block;
+    }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-database-compat.js"></script>
+</head>
+<body>
+  <h1>💝 Hộp quà bí mật</h1>
+  <div id="message"></div>
+  <div id="giftBox">🎁</div>
+  <div id="giftContent">
+    <h2 id="giftName"></h2>
+    <p id="giftDesc"></p>
+  </div>
+
+  <script>
+    const configData = JSON.parse(document.getElementById('firebase-config').textContent);
+    if (!firebase.apps.length) {
+      firebase.initializeApp(configData);
+    }
+    const db = firebase.database();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+
+    const giftBox = document.getElementById('giftBox');
+    const giftContent = document.getElementById('giftContent');
+    const giftName = document.getElementById('giftName');
+    const giftDesc = document.getElementById('giftDesc');
+    const message = document.getElementById('message');
+
+    if (!code) {
+      message.textContent = "😥 Không có mã!";
+      giftBox.style.display = 'none';
+    } else {
+      const codeRef = db.ref('giftCodes/' + code);
+      codeRef.get().then((snapshot) => {
+        if (!snapshot.exists()) {
+          message.textContent = "😓 Mã không hợp lệ!";
+          giftBox.style.display = 'none';
+        } else {
+          const gift = snapshot.val();
+          if (gift.used) {
+            message.textContent = "😢 Mã này đã được sử dụng rồi!";
+            giftBox.style.display = 'none';
+          } else {
+            giftBox.addEventListener('click', () => {
+              giftBox.classList.add('opened');
+              giftName.textContent = gift.name;
+              giftDesc.textContent = gift.desc;
+              giftContent.classList.add('show');
+              codeRef.update({ used: true });
+            });
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
+
+<!--
+  File: admin.html
+  Trang tạo mã & gửi quà qua EmailJS
+-->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin - Tạo Mã Quà</title>
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-database-compat.js"></script>
+</head>
+<body>
+  <h1>🎁 Tạo & Gửi Mã Quà</h1>
+  <input id="giftName" placeholder="Tên quà">
+  <textarea id="giftDesc" placeholder="Chi tiết quà"></textarea>
+  <input id="email" type="email" placeholder="Email người nhận">
+  <button onclick="createAndSend()">Tạo mã & Gửi</button>
+  <div id="result"></div>
+
+  <script>
+    emailjs.init("YOUR_EMAILJS_USER_ID");
+    const configData = JSON.parse(document.getElementById('firebase-config').textContent);
+    if (!firebase.apps.length) {
+      firebase.initializeApp(configData);
+    }
+    const db = firebase.database();
+
+    function generateCode(length = 8) {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    }
+
+    function createAndSend() {
+      const name = document.getElementById('giftName').value.trim();
+      const desc = document.getElementById('giftDesc').value.trim();
+      const email = document.getElementById('email').value.trim();
+
+      if (!name || !desc || !email) {
+        alert("Điền đầy đủ thông tin nha!");
+        return;
+      }
+
+      const code = generateCode();
+      const link = `https://monquadanhriengem.netlify.app/nhanquagift.html?code=${code}`;
+
+      db.ref('giftCodes/' + code).set({ name, desc, used: false }).then(() => {
+        return emailjs.send("YOUR_SERVICE_ID", "YOUR_TEMPLATE_ID", {
+          to_email: email,
+          gift_name: name,
+          gift_desc: desc,
+          gift_link: link
+        });
+      }).then(() => {
+        document.getElementById('result').innerHTML = `Mã: <b>${code}</b><br><a href='${link}' target='_blank'>${link}</a>`;
+      }).catch(err => {
+        alert("Lỗi khi gửi mã: " + err);
+      });
+    }
+  </script>
+</body>
+</html>
